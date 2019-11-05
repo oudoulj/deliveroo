@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 
 const MenuItem = props => {
-  const { title, description, price, picture, popular } = props;
+  const { id, title, description, price, picture, popular, onItemClick } = props;
+  // console.log(price);
   return (
     <div className="MenuItem">
-      <div className="MenuItem--card">
+      <div
+        className="MenuItem--card"
+        onClick={() => {
+          console.log("Added to cart", id, title, price);
+          onItemClick(id, title, price);
+        }}
+      >
         <div className="MenuItem--texts">
           <h3>{title}</h3>
           <p>{description}</p>

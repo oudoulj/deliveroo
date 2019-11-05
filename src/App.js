@@ -4,10 +4,15 @@ import ky from "ky";
 import MenuItem from "./MenuItem";
 
 const App = () => {
-  const [menuItems, setMenuItems] = useState(null); //useState(["Brunchs", "Salades", "Viennoiseries"]);
+  const [menuItems, setMenuItems] = useState(null);
+  const [selectedItems, setSelectedItems] = useState([]); //ids, titles, prices and quantities
 
+  const isCartEmpty = selectedItems.length === 0; //no need to have a hook for that since you can deduce it from another existing hook
+  const deliveryFee = 2.5;
+
+  //with an empty array as a dependency, run once after component has been rendered
   useEffect(() => {
-    console.log("fetching api data...");
+    console.log("[In useEffect] fetching api data...");
     // let myMenus = null;
     ky.get(`https://deliveroo-api.now.sh/menu`)
       .json()
@@ -15,26 +20,71 @@ const App = () => {
         // myMenus = result.menu;
         setMenuItems(result.menu);
         // setMenuItems(myMenus);
-        console.log("in then", result.menu);
+        // console.log("in then", result.menu);
       });
 
-    // apiResult();
-    //
     // console.log("myMenus", myMenus);
   }, []);
 
-  const loadMenuItems = selectedMenuItemLabel => {
-    ky.get(`https://deliveroo-api.now.sh/menu`)
-      .json()
-      .then(result => {
-        result.menu.filter(menuItem => menuItem === selectedMenuItemLabel);
-        setMenuItems(result.menu);
-        // setMenuItems(myMenus);
-        console.log("in then", result.menu);
+  const handleItemClick = (itemId, itemTitle, itemPrice) => {
+    setSelectedItems(prevSelected => {
+      let existingItem = selectedItems.find(x => x.id === itemId);
+      if (existingItem === undefined) {
+        const newItem = { id: itemId, title: itemTitle, price: itemPrice, quantity: 1 };
+        return [...prevSelected, newItem];
+      }
+      return prevSelected.map(item => {
+        if (item.id !== itemId) {
+          return item;
+        }
+        return {
+          ...item,
+          quantity: item.quantity + 1
+        };
       });
+    });
   };
 
-  console.log(menuItems);
+  const handleRemoveQuantity = itemId => {
+    console.log("in handleRemoveQuantity", itemId);
+    setSelectedItems(prevSelected => {
+      let existingItem = selectedItems.find(x => x.id === itemId);
+      console.log("current quantity", existingItem.quantity);
+      if (existingItem !== undefined) {
+        if (existingItem.quantity === 1) {
+          return prevSelected.filter(item => {
+            return item.id !== itemId;
+          });
+        }
+        return prevSelected.map(item => {
+          if (item.id !== itemId) {
+            return item;
+          }
+          return {
+            ...item,
+            quantity: item.quantity - 1
+          };
+        });
+      }
+    });
+  };
+
+  const handleAddQuantity = itemId => {
+    console.log("in handleAddQuantity", itemId);
+    handleItemClick(itemId);
+  };
+
+  let total = 0;
+  let subTotal = 0;
+  selectedItems.forEach(item => {
+    // subTotal = 111; //to be calculated
+    subTotal = subTotal + parseFloat(item.price) * item.quantity;
+  });
+  total = subTotal + deliveryFee;
+  console.log("total = ", total);
+
+  // console.log(menuItems);
+  console.log("selectedItems hooks", selectedItems);
 
   return (
     <div className="App">
@@ -71,32 +121,112 @@ const App = () => {
             {menuItems !== null
               ? Object.keys(menuItems).map((menuItemKey, index) => {
                   const cards = menuItems[menuItemKey];
-                  console.log(menuItemKey, cards);
+                  //console.log(menuItemKey, cards);
 
                   return (
                     <div className="MenuItems" key={index}>
                       <h2>{menuItemKey}</h2>
-                      {/* <MenuItem /> */}
                       {cards.map((item, index) => (
                         <div key={index} className="MenuItem--items">
                           <MenuItem
+                            id={item["id"]}
                             title={item["title"]}
                             description={item["description"]}
                             price={item["price"]}
                             picture={item["picture"]}
                             popular={item["popular"]}
+                            onItemClick={(itemId, itemTitle, itemPrice) => {
+                              console.log("Added item", itemId, itemTitle, "at price", itemPrice);
+                              //setSelectedItems({ ...selectedItems, item });
+                              handleItemClick(itemId, itemTitle, itemPrice);
+                            }}
                           />
-                          {/* <div className="MenuItem">
-                            <div className="MenuItem--card">
-                              <div className="MenuItem--texts">{item["title"]}</div>
-                            </div>
-                          </div> */}
                         </div>
                       ))}
                     </div>
                   );
                 })
               : null}
+          </div>
+          <div className="Cart">
+            <div className="Cart--card">
+              <button className={`Cart--validate ${isCartEmpty ? "Cart--disabled" : ""}`}>Valider mon panier</button>
+              {isCartEmpty ? (
+                <div className="Cart--empty">Votre panier est vide</div>
+              ) : (
+                <div>
+                  {selectedItems.map(selectedItem => (
+                    <div className="Cart--items" key={selectedItem.id}>
+                      <div className="Cart--line">
+                        <div className="Cart--counter">
+                          <span
+                            onClick={() => {
+                              console.log("remove 1", selectedItem.title);
+                              handleRemoveQuantity(selectedItem.id);
+                            }}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="feather feather-plus-circle"
+                              style={{ width: "20px", height: "20px", cursor: "pointer", color: "rgb(0, 206, 189)" }}
+                            >
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <line x1="8" y1="12" x2="16" y2="12"></line>
+                            </svg>
+                          </span>
+                          <span>{selectedItem.quantity}</span>
+                          <span
+                            onClick={() => {
+                              console.log("add 1", selectedItem.title);
+                              handleAddQuantity(selectedItem.id);
+                              //handleItemClick(selectedItem.id);
+                            }}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="feather feather-plus-circle"
+                              style={{ width: "20px", height: "20px", cursor: "pointer", color: "rgb(0, 206, 189)" }}
+                            >
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <line x1="12" y1="8" x2="12" y2="16"></line>
+                              <line x1="8" y1="12" x2="16" y2="12"></line>
+                            </svg>
+                          </span>
+                        </div>
+                        <span className="Cart--item-name">{selectedItem.title}</span>
+                        <span className="Cart--amount">{selectedItem.price * selectedItem.quantity} €</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="Cart--results">
+                    <div className="Cart--result-line">
+                      <span className="Cart--result-name">Sous-total</span>
+                      <span className="Cart--amount">{subTotal} €</span>
+                    </div>
+                    <div className="Cart--result-line">
+                      <span className="Cart--result-name">Frais de livraison</span>
+                      <span>{deliveryFee} €</span>
+                    </div>
+                  </div>
+                  <div className="Cart--total">
+                    <span className="Cart--result-name">Total</span>
+                    <span className="Cart--amount">{total} €</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
