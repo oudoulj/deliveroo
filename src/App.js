@@ -3,7 +3,21 @@ import React, { useState, useEffect } from "react";
 import ky from "ky";
 import MenuItem from "./MenuItem";
 
-const App = () => {
+//Redux-related imports
+import { connect } from "react-redux";
+import { selectExpenses } from "../src/selectors";
+import { addQuantity } from "./action";
+
+const mapStateToProps = state => ({
+  expenses: selectExpenses(state)
+});
+
+const mapDispatchToProps = {
+  addQuantity
+};
+
+const AppRender = ({ expenses, addQuantity }) => {
+  console.log(expenses);
   const [menuItems, setMenuItems] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]); //ids, titles, prices and quantities
 
@@ -12,37 +26,32 @@ const App = () => {
 
   //with an empty array as a dependency, run once after component has been rendered
   useEffect(() => {
-    console.log("[In useEffect] fetching api data...");
-    // let myMenus = null;
     ky.get(`https://deliveroo-api.now.sh/menu`)
       .json()
       .then(result => {
-        // myMenus = result.menu;
+        console.log("result.menu", result.menu);
         setMenuItems(result.menu);
-        // setMenuItems(myMenus);
-        // console.log("in then", result.menu);
       });
-
-    // console.log("myMenus", myMenus);
   }, []);
 
   const handleItemClick = (itemId, itemTitle, itemPrice) => {
-    setSelectedItems(prevSelected => {
-      let existingItem = selectedItems.find(x => x.id === itemId);
-      if (existingItem === undefined) {
-        const newItem = { id: itemId, title: itemTitle, price: itemPrice, quantity: 1 };
-        return [...prevSelected, newItem];
-      }
-      return prevSelected.map(item => {
-        if (item.id !== itemId) {
-          return item;
-        }
-        return {
-          ...item,
-          quantity: item.quantity + 1
-        };
-      });
-    });
+    addQuantity(itemPrice, itemTitle);
+    // setSelectedItems(prevSelected => {
+    //   let existingItem = selectedItems.find(x => x.id === itemId);
+    //   if (existingItem === undefined) {
+    //     const newItem = { id: itemId, title: itemTitle, price: itemPrice, quantity: 1 };
+    //     return [...prevSelected, newItem];
+    //   }
+    //   return prevSelected.map(item => {
+    //     if (item.id !== itemId) {
+    //       return item;
+    //     }
+    //     return {
+    //       ...item,
+    //       quantity: item.quantity + 1
+    //     };
+    //   });
+    // });
   };
 
   const handleRemoveQuantity = itemId => {
@@ -81,10 +90,12 @@ const App = () => {
     subTotal = subTotal + parseFloat(item.price) * item.quantity;
   });
   total = subTotal + deliveryFee;
-  console.log("total = ", total);
+  //console.log("total = ", total);
 
   // console.log(menuItems);
-  console.log("selectedItems hooks", selectedItems);
+  //console.log("selectedItems hooks", selectedItems);
+  console.log("expenses", expenses);
+  console.log("expenses.menu", expenses.menu);
 
   return (
     <div className="App">
@@ -119,14 +130,16 @@ const App = () => {
         <div className="Content--center">
           <div className="Menu">
             {menuItems !== null
-              ? Object.keys(menuItems).map((menuItemKey, index) => {
-                  const cards = menuItems[menuItemKey];
-                  //console.log(menuItemKey, cards);
+              ? //Object.keys(menuItems).map((menuItemKey, index) => {
+                expenses.map((menuItemKey, index) => {
+                  // const cards = expenses[menuItemKey];
+                  console.log("menuItemKey", menuItemKey);
+                  // console.log("cards", cards);
 
                   return (
                     <div className="MenuItems" key={index}>
-                      <h2>{menuItemKey}</h2>
-                      {cards.map((item, index) => (
+                      <h2>menuItemKey = {menuItemKey}</h2>
+                      {/* {Object.keys(cards).map((item, index) => (
                         <div key={index} className="MenuItem--items">
                           <MenuItem
                             id={item["id"]}
@@ -142,7 +155,7 @@ const App = () => {
                             }}
                           />
                         </div>
-                      ))}
+                      ))} */}
                     </div>
                   );
                 })
@@ -234,4 +247,7 @@ const App = () => {
   );
 };
 
-export default App;
+export const App = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(AppRender);
